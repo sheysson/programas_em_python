@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Algoritmos de Ordenação</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Visualizador de Ordenação</h1>
+        <div class="controls">
+            <button id="generateArray">Gerar Novo Array</button>
+            <select id="algorithmSelector">
+                <option value="bubbleSort">Bubble Sort</option>
+                <option value="selectionSort">Selection Sort</option>
+                </select>
+            <button id="startSort">Iniciar Ordenação</button>
+            <input type="range" id="speedSlider" min="1" max="500" value="100">
+            <label for="speedSlider">Velocidade</label>
+        </div>
+        <div id="arrayContainer" class="array-container">
+            </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
