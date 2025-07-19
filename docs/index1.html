@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cobrinha</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+
+        .game-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        h1 {
+            margin: 0 0 20px 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .score-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        canvas {
+            border: 4px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            background: #1a1a1a;
+            position: relative;
+            z-index: 1;
+        }
+
+        .controls {
+            margin-top: 20px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .restart-btn,
+        .start-game-btn {
+            /* Estilo compartilhado para os botões */
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+
+        .restart-btn:hover,
+        .start-game-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+        }
+
+        .mobile-controls {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+            max-width: 200px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .control-btn:hover,
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0.95);
+        }
+
+        .start-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+            z-index: 2;
+            /* Acima do canvas */
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .mobile-controls {
+                display: grid;
+            }
+
+            canvas {
+                max-width: 90vw;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="game-container">
+        <h1>🐍 Jogo da Cobrinha</h1>
+        <div class="score-container">
+            <div>Pontuação: <span id="score">0</span></div>
+            <div>Recorde: <span id="highScore">0</span></div>
+        </div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="start-message" id="startMessage">
+            Boa Sorte
+            <button class="start-game-btn" onclick="startGameButton()">Iniciar Jogo</button>
+        </div>
+        <div class="controls">
+            Use as setas do teclado para mudar a direção<br>
+            <small>💨 Velocidade aumenta a cada 50 pontos!</small>
+        </div>
+        <div class="mobile-controls" id="mobileControls">
+            <div></div>
+            <div class="control-btn" data-direction="up">↑</div>
+            <div></div>
+            <div class="control-btn" data-direction="left">←</div>
+            <div></div>
+            <div class="control-btn" data-direction="right">→</div>
+            <div></div>
+            <div class="control-btn" data-direction="down">↓</div>
+            <div></div>
+        </div>
+    </div>
+    <div class="game-over" id="gameOverScreen">
+        <h2>Game Over!</h2>
+        <p>Sua pontuação: <span id="finalScore">0</span></p>
+        <button class="restart-btn" onclick="resetGame()">Jogar Novamente</button>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('highScore');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreElement = document.getElementById('finalScore');
+        const startMessage = document.getElementById('startMessage');
+
+        // Configurações do jogo
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        // Variáveis do jogo
+        let snake = [{ x: 10, y: 10 }];
+        let food = {};
+        let dx = 0; // Começa parado (sem movimento inicial)
+        let dy = 0; // Começa parado (sem movimento inicial)
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('snakeHighScore') || '0');
+        let gameRunning = false; // O jogo não está rodando no início
+        let gameSpeed = 200;
+        let gameInterval;
+        let keyPressed = false; // Para evitar múltiplas entradas de teclado por frame
+
+        // Atualizar recorde na tela
+        highScoreElement.textContent = highScore;
+
+        // Gerar comida aleatória
+        function generateFood() {
+            food = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount)
+            };
+            // Verificar se a comida não está na cobrinha
+            for (let segment of snake) {
+                if (segment.x === food.x && segment.y === food.y) {
+                    generateFood(); // Se a comida estiver na cobra, gera novamente
+                    return;
+                }
+            }
+        }
+
+        // Desenhar elementos do jogo
+        function drawGame() {
+            // Limpar tela
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Desenhar grade sutil
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+
+            // Desenhar cobrinha
+            snake.forEach((segment, index) => {
+                if (index === 0) {
+                    // Cabeça da cobrinha
+                    const gradient = ctx.createRadialGradient(
+                        segment.x * gridSize + gridSize / 2,
+                        segment.y * gridSize + gridSize / 2,
+                        0,
+                        segment.x * gridSize + gridSize / 2,
+                        segment.y * gridSize + gridSize / 2,
+                        gridSize / 2
+                    );
+                    gradient.addColorStop(0, '#4ecdc4');
+                    gradient.addColorStop(1, '#26a69a');
+                    ctx.fillStyle = gradient;
+                } else {
+                    // Corpo da cobrinha
+                    const gradient = ctx.createLinearGradient(
+                        segment.x * gridSize,
+                        segment.y * gridSize,
+                        (segment.x + 1) * gridSize,
+                        (segment.y + 1) * gridSize
+                    );
+                    gradient.addColorStop(0, '#66bb6a');
+                    gradient.addColorStop(1, '#388e3c');
+                    ctx.fillStyle = gradient;
+                }
+                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+
+                // Borda dos segmentos
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+            });
+
+            // Desenhar comida
+            const foodGradient = ctx.createRadialGradient(
+                food.x * gridSize + gridSize / 2,
+                food.y * gridSize + gridSize / 2,
+                0,
+                food.x * gridSize + gridSize / 2,
+                food.y * gridSize + gridSize / 2,
+                gridSize / 2
+            );
+            foodGradient.addColorStop(0, '#ff6b6b');
+            foodGradient.addColorStop(1, '#e74c3c');
+            ctx.fillStyle = foodGradient;
+            ctx.beginPath();
+            ctx.arc(food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2, gridSize / 2 - 1, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Brilho na comida
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(food.x * gridSize + gridSize / 2 - 3, food.y * gridSize + gridSize / 2 - 3, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        // Mover cobrinha
+        function moveSnake() {
+            if (!gameRunning) return; // Só move se o jogo estiver rodando
+
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Verificar colisão com paredes
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver();
+                return;
+            }
+
+            // Verificar colisão consigo mesma (começa do segundo segmento)
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            snake.unshift(head); // Adiciona a nova cabeça
+
+            // Verificar se comeu a comida
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                scoreElement.textContent = score;
+
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreElement.textContent = highScore;
+                    localStorage.setItem('snakeHighScore', highScore.toString());
+                }
+
+                // Aumentar velocidade a cada 50 pontos
+                if (score % 50 === 0 && gameSpeed > 80) {
+                    gameSpeed -= 10;
+                    clearInterval(gameInterval); // Limpa o intervalo antigo
+                    gameInterval = setInterval(gameLoop, gameSpeed); // Inicia com a nova velocidade
+                }
+                generateFood(); // Gera nova comida
+            } else {
+                snake.pop(); // Remove o último segmento se não comeu (move a cobra)
+            }
+        }
+
+        // Lógica de Game Over
+        function gameOver() {
+            gameRunning = false;
+            finalScoreElement.textContent = score;
+            gameOverScreen.style.display = 'block'; // Exibe a tela de Game Over
+            clearInterval(gameInterval); // Garante que o loop do jogo pare
+        }
+
+        // Reiniciar jogo (após Game Over, via botão "Jogar Novamente")
+        function resetGame() {
+            snake = [{ x: 10, y: 10 }]; // Posição inicial da cobra
+            dx = 0; // Cobra volta a ficar parada
+            dy = 0;
+            score = 0; // Zera a pontuação
+            scoreElement.textContent = score; // Atualiza a pontuação na tela
+            gameRunning = false; // O jogo não está rodando
+            gameSpeed = 200; // Reseta a velocidade
+            keyPressed = false; // Reseta o controle de tecla
+            gameOverScreen.style.display = 'none'; // Esconde a tela de Game Over
+            startMessage.style.display = 'block'; // Mostra a mensagem de início para um novo clique
+            generateFood(); // Gera nova comida
+            drawGame(); // Desenha o estado inicial
+            clearInterval(gameInterval); // Garante que nenhum loop esteja rodando
+        }
+
+        // Loop principal do jogo
+        function gameLoop() {
+            moveSnake();
+            drawGame();
+            keyPressed = false; // Permite nova tecla após o movimento do frame atual
+        }
+
+        // Inicializa a tela do jogo quando a página carrega
+        function initializeGameScreen() {
+            generateFood(); // Gera a primeira comida
+            drawGame(); // Desenha a tela inicial (cobra parada, comida)
+            // O gameInterval não é iniciado aqui, espera o clique no botão "Iniciar Jogo"
+        }
+
+        // Função que inicia o loop do jogo, EXCLUSIVA do botão "Iniciar Jogo"
+        function startGameFlow() {
+            if (!gameRunning) { // Só inicia o loop do jogo se não estiver rodando
+                gameRunning = true;
+                startMessage.style.display = 'none'; // Esconde a mensagem de início
+                clearInterval(gameInterval); // Limpa qualquer intervalo existente
+
+                // Se a direção ainda não foi definida (cobra parada), define uma direção padrão (direita).
+                if (dx === 0 && dy === 0) {
+                    dx = 1; // Começa movendo para a direita por padrão
+                }
+                gameInterval = setInterval(gameLoop, gameSpeed); // Inicia o loop principal
+            }
+        }
+
+        // Função associada ao botão "Iniciar Jogo"
+        function startGameButton() {
+            startGameFlow();
+        }
+
+        // Controles do teclado - AGORA APENAS DEFINEM A DIREÇÃO, NÃO INICIAM O JOGO
+        document.addEventListener('keydown', (e) => {
+            const key = e.key;
+
+            // Se o jogo já está rodando, a lógica de keyPressed já se aplica para evitar inputs rápidos.
+            // Se o jogo NÃO está rodando, a tecla apenas define a direção para quando o botão for clicado.
+            if (keyPressed && gameRunning) return; // Se jogo rodando e tecla processada, ignora.
+
+            let directionSet = false; // Flag para verificar se a direção foi alterada
+
+            // Verifica a tecla pressionada e muda a direção, evitando inversões
+            if (key === 'ArrowLeft' && dx !== 1) {
+                dx = -1;
+                dy = 0;
+                directionSet = true;
+            } else if (key === 'ArrowUp' && dy !== 1) {
+                dx = 0;
+                dy = -1;
+                directionSet = true;
+            } else if (key === 'ArrowRight' && dx !== -1) {
+                dx = 1;
+                dy = 0;
+                directionSet = true;
+            } else if (key === 'ArrowDown' && dy !== -1) {
+                dx = 0;
+                dy = 1;
+                directionSet = true;
+            }
+
+            if (directionSet) {
+                e.preventDefault(); // Impede o scroll da página pelas setas
+                if (gameRunning) { // Se o jogo já estiver rodando, marca a tecla como processada para o próximo frame
+                    keyPressed = true;
+                } else { // Se o jogo não estiver rodando, apenas redesenha para mostrar a nova direção
+                    drawGame();
+                }
+            }
+        });
+
+        // Controles touch para mobile - AGORA APENAS DEFINEM A DIREÇÃO, NÃO INICIAM O JOGO
+        document.querySelectorAll('.control-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Se o jogo já está rodando e uma ação já foi processada neste frame, ignora.
+                if (keyPressed && gameRunning) return;
+
+                const direction = e.target.getAttribute('data-direction');
+                let directionSet = false;
+
+                switch (direction) {
+                    case 'up':
+                        if (dy !== 1) { dx = 0; dy = -1; directionSet = true; }
+                        break;
+                    case 'down':
+                        if (dy !== -1) { dx = 0; dy = 1; directionSet = true; }
+                        break;
+                    case 'left':
+                        if (dx !== 1) { dx = -1; dy = 0; directionSet = true; }
+                        break;
+                    case 'right':
+                        if (dx !== -1) { dx = 1; dy = 0; directionSet = true; }
+                        break;
+                }
+
+                if (directionSet) {
+                    if (gameRunning) { // Se o jogo já estiver rodando, marca a tecla como processada para o próximo frame
+                        keyPressed = true; // Simular keyPressed para mobile também
+                    } else { // Se o jogo não estiver rodando, apenas redesenha para mostrar a nova direção
+                        drawGame();
+                    }
+                }
+            });
+        });
+
+        // Inicializar a tela do jogo quando a página carregar
+        window.addEventListener('load', initializeGameScreen);
+    </script>
+</body>
+
+</html>
